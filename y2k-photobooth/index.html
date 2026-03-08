@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CYBERPINK STUDIO | Official 4-Cut Booth</title>
+    
+    <meta property="og:title" content="CYBERPINK STUDIO">
+    <meta property="og:description" content="Official 4-Cut Y2K Photobooth. Choose your vibe: Cyberpink, Kendall, or 1989.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💖</text></svg>"> 
+
+    <style>
+        body { 
+            background-color: #000;
+            background-image: linear-gradient(rgba(255, 20, 147, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 20, 147, 0.1) 1px, transparent 1px);
+            background-size: 40px 40px;
+            color: white; font-family: 'Courier New', monospace; 
+            margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center;
+        }
+
+        .studio-header { text-align: center; margin-bottom: 20px; }
+        .cyber-title {
+            font-family: 'Arial Black', sans-serif; font-size: 45px; color: #FF1493;
+            text-transform: uppercase; letter-spacing: -2px; margin: 0;
+            text-shadow: 0 0 15px rgba(255, 20, 147, 0.6);
+        }
+        .sub-tag { font-size: 14px; letter-spacing: 6px; color: #fff; display: block; margin-top: 5px; font-weight: bold; }
+
+        #booth-frame {
+            position: relative; padding: 20px; transition: all 0.4s ease;
+            background: #000; display: inline-block; border-radius: 10px;
+        }
+
+        .frame-cyberpink { border: 5px solid #FF1493; box-shadow: 0 0 25px #FF1493; }
+        .frame-kendall { border: 2px solid #7d7268; background: #1a1a1a !important; }
+        .frame-1989 { border: 1px solid #ddd; background: #fdfdfd !important; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+
+        video { width: 320px; height: 240px; display: block; transform: scaleX(-1); filter: contrast(1.1); }
+
+        .filter-menu { margin: 20px 0; display: flex; gap: 10px; background: #111; padding: 8px; border-radius: 50px; }
+        .pill { background: transparent; color: #fff; border: none; padding: 10px 20px; border-radius: 40px; cursor: pointer; font-size: 11px; font-weight: bold; }
+        .pill.active { background: #FF1493; color: #000; }
+
+        #start-btn { 
+            background: transparent; color: #FF1493; border: 2px solid #FF1493; padding: 12px 30px; 
+            font-weight: bold; border-radius: 50px; cursor: pointer; font-size: 16px;
+        }
+
+        canvas { margin-top: 25px; max-width: 95vw; height: auto; display: block; border-radius: 5px; }
+
+        #flash {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; opacity: 0; pointer-events: none; z-index: 9999;
+        }
+        .flash-active { animation: flashAnim 0.2s ease-out; }
+        @keyframes flashAnim { 0% { opacity: 0.9; } 100% { opacity: 0; } }
+
+        .action-btns { margin-top: 20px; display: flex; gap: 10px; }
+        .pill-save { background: #000; color: #FF1493; border: 2px solid #FF1493; padding: 10px 25px; border-radius: 50px; cursor: pointer; font-weight: bold; }
+        .pill-retake { background: #333; color: #fff; border: none; padding: 10px 25px; border-radius: 50px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div id="flash"></div>
+
+<header class="studio-header">
+    <h1 id="main-title" class="cyber-title">CYBERPINK</h1>
+    <span id="sub-tag" class="sub-tag">IN YOUR AREA</span>
+</header>
+
+<div id="booth-frame" class="frame-cyberpink">
+    <video id="video" autoplay playsinline></video>
+</div>
+
+<div class="filter-menu">
+    <button id="btn-baddie" class="pill active" onclick="setTheme('baddie')">CYBERPINK</button>
+    <button id="btn-kendall" class="pill" onclick="setTheme('kendall')">KENDALL</button>
+    <button id="btn-1989" class="pill" onclick="setTheme('1989')">1989 (TV)</button>
+</div>
+
+<button id="start-btn">START 4-CUT SEQUENCE</button>
+<canvas id="canvas"></canvas>
+
+<div class="action-btns">
+    <button id="download-btn" class="pill-save" style="display:none;">SAVE STRIP</button>
+    <button id="retake-btn" class="pill-retake" style="display:none;">RETAKE</button>
+</div>
+
+<script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const startBtn = document.getElementById("start-btn");
+    const downloadBtn = document.getElementById("download-btn");
+    const retakeBtn = document.getElementById("retake-btn");
+    const flashDiv = document.getElementById("flash");
+
+    let captures = [];
+    let currentFilterMode = 'baddie';
+
+    const filterStyles = {
+        baddie: "contrast(1.2) brightness(1.1) saturate(1.2) hue-rotate(-5deg)",
+        kendall: "sepia(0.4) contrast(1.3) brightness(0.9) saturate(0.7) grayscale(0.1)",
+        1989: "brightness(1.3) contrast(0.85) saturate(0.9) sepia(0.1)"
+    };
+
+    // HD Constraints for all devices
+    navigator.mediaDevices.getUserMedia({ 
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" } 
+    }).then(s => video.srcObject = s);
+
+    function setTheme(mode) {
+        currentFilterMode = mode;
+        video.style.filter = filterStyles[mode];
+        const frame = document.getElementById('booth-frame');
+        const title = document.getElementById('main-title');
+        const tag = document.getElementById('sub-tag');
+        
+        frame.className = '';
+        document.querySelectorAll('.pill').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`btn-${mode}`).classList.add('active');
+
+        if (mode === 'baddie') {
+            frame.classList.add('frame-cyberpink');
+            title.style.color = "#FF1493"; tag.innerText = "IN YOUR AREA";
+        } else if (mode === 'kendall') {
+            frame.classList.add('frame-kendall');
+            title.style.color = "#7d7268"; tag.innerText = "EDITORIAL MODE";
+        } else if (mode === '1989') {
+            frame.classList.add('frame-1989');
+            title.style.color = "#888"; tag.innerText = "INSTAX EDITION";
+        }
+    }
+
+    startBtn.addEventListener("click", async () => {
+        captures = [];
+        downloadBtn.style.display = "none";
+        retakeBtn.style.display = "none";
+        startBtn.disabled = true;
+
+        for (let i = 0; i < 4; i++) {
+            await countdown(3);
+            triggerFlash();
+            captureFrame();
+        }
+
+        startBtn.innerText = "DEVELOPING FILM...";
+        setTimeout(renderStrip, 800);
+    });
+
+    function countdown(s) {
+        return new Promise(res => {
+            let c = s;
+            const i = setInterval(() => {
+                startBtn.innerText = `POSE! ${c}`;
+                if (c-- <= 0) { clearInterval(i); res(); }
+            }, 1000);
+        });
+    }
+
+    function triggerFlash() {
+        flashDiv.classList.add("flash-active");
+        setTimeout(() => flashDiv.classList.remove("flash-active"), 200);
+    }
+
+    function captureFrame() {
+    const temp = document.createElement("canvas");
+    // These are your frame dimensions
+    const targetW = 320; 
+    const targetH = 240;
+    
+    temp.width = targetW;
+    temp.height = targetH;
+    const tCtx = temp.getContext("2d");
+
+    // Calculate scaling to prevent "Long Finger" stretching
+    const videoAspectRatio = video.videoWidth / video.videoHeight;
+    const targetAspectRatio = targetW / targetH;
+
+    let sourceW, sourceH, sourceX, sourceY;
+
+    if (videoAspectRatio > targetAspectRatio) {
+        // Video is wider than the frame (common on Macs)
+        sourceH = video.videoHeight;
+        sourceW = video.videoHeight * targetAspectRatio;
+        sourceX = (video.videoWidth - sourceW) / 2;
+        sourceY = 0;
+    } else {
+        // Video is taller than the frame
+        sourceW = video.videoWidth;
+        sourceH = video.videoWidth / targetAspectRatio;
+        sourceX = 0;
+        sourceY = (video.videoHeight - sourceH) / 2;
+    }
+
+    // Mirror the capture
+    tCtx.translate(targetW, 0);
+    tCtx.scale(-1, 1);
+
+    // Draw only the center portion of the video to the temp canvas
+    tCtx.drawImage(
+        video, 
+        sourceX, sourceY, sourceW, sourceH, // Source (the camera feed)
+        0, 0, targetW, targetH              // Destination (your frame)
+    );
+    
+    captures.push(temp);
+}
+
+    function renderStrip() {
+        const dpr = window.devicePixelRatio || 1; 
+        const baseScale = 2; 
+        const w = 320 * baseScale, h = 240 * baseScale, p = 40 * baseScale;
+        
+        canvas.width = (w + (p * 2)) * dpr;
+        canvas.height = ((h * 4) + (p * 6)) * dpr;
+        canvas.style.width = (w + (p * 2)) + "px";
+        canvas.style.height = ((h * 4) + (p * 6)) + "px";
+        ctx.scale(dpr, dpr);
+
+        // Frame Backgrounds
+        if (currentFilterMode === 'baddie') {
+            ctx.fillStyle = "#FF1493"; ctx.fillRect(0, 0, w + p*2, (h*4) + (p*6));
+            ctx.fillStyle = "rgba(0,0,0,0.85)"; ctx.fillRect(p/2, p/2, w + p, (h*4) + (p*5));
+        } else if (currentFilterMode === 'kendall') {
+            ctx.fillStyle = "#1a1a1a"; ctx.fillRect(0, 0, w + p*2, (h*4) + (p*6));
+        } else {
+            ctx.fillStyle = "#fdfdfd"; ctx.fillRect(0, 0, w + p*2, (h*4) + (p*6));
+        }
+
+        captures.forEach((cap, i) => {
+            const y = p + (i * (h + p));
+            ctx.save();
+            if (currentFilterMode === '1989') {
+                ctx.shadowColor = "rgba(0,0,0,0.15)"; ctx.shadowBlur = 15; ctx.shadowOffsetY = 5;
+            } else if (currentFilterMode === 'baddie') {
+                ctx.shadowColor = "#FF1493"; ctx.shadowBlur = 10;
+            }
+            ctx.filter = filterStyles[currentFilterMode];
+            ctx.drawImage(cap, p, y, w, h);
+            ctx.restore();
+
+            // Sprockets for Kendall/Baddie
+            if (currentFilterMode !== '1989') {
+                ctx.fillStyle = currentFilterMode === 'baddie' ? "rgba(255,255,255,0.1)" : "#333";
+                for (let j = 10; j < h; j += 30) {
+                    ctx.fillRect(p/4, y + j, 10, 10);
+                    ctx.fillRect(p + w + p/2, y + j, 10, 10);
+                }
+            }
+        });
+
+        // Branding
+        ctx.filter = "none"; ctx.textAlign = "center";
+        ctx.fillStyle = currentFilterMode === 'baddie' ? "#FF1493" : (currentFilterMode === 'kendall' ? "#fff" : "#888");
+        ctx.font = "bold 20px 'Courier New'";
+        ctx.fillText("CYBERPINK STUDIO", (w + p*2)/2, (h*4) + (p*5) + 30);
+
+        startBtn.disabled = false;
+        startBtn.innerText = "START 4-CUT SEQUENCE";
+        downloadBtn.style.display = "inline-block";
+        retakeBtn.style.display = "inline-block";
+    }
+
+    downloadBtn.onclick = () => {
+        const a = document.createElement('a');
+        a.download = `CYBERPINK_${currentFilterMode.toUpperCase()}.png`;
+        a.href = canvas.toDataURL("image/png");
+        a.click();
+    };
+
+    retakeBtn.onclick = () => {
+        canvas.width = 0; canvas.height = 0;
+        downloadBtn.style.display = "none"; retakeBtn.style.display = "none";
+    };
+</script>
+</body>
+</html>
